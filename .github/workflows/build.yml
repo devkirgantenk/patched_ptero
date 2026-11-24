@@ -1,0 +1,99 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    # Every Sunday at 03:00 UTC — keeps base images fresh.
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: devkirgantenk/patched_ptero
+
+jobs:
+  build:
+    name: Build ${{ matrix.tag }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Eclipse Temurin (EOL/LTS bases proven patched upstream)
+          - tag: java_8
+            base: eclipse-temurin:8-jre-jammy
+            verify: false
+          - tag: java_11
+            base: eclipse-temurin:11-jre-jammy
+            verify: false
+          - tag: java_16
+            base: eclipse-temurin:16-jre
+            verify: false
+          # Microsoft OpenJDK (patched builds)
+          - tag: java_17
+            base: mcr.microsoft.com/openjdk/jdk:17-ubuntu
+            verify: true
+          - tag: java_21
+            base: mcr.microsoft.com/openjdk/jdk:21-ubuntu
+            verify: true
+          - tag: java_25
+            base: mcr.microsoft.com/openjdk/jdk:25-ubuntu
+            verify: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push multi-arch image (${{ matrix.tag }})
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker
+          file: ./docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            BASE_IMAGE=${{ matrix.base }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ------------------------------------------------------------------
+      # CVE-2026-114938 (Java4Shell) verification.
+      # Unpatched/mitigated-only images report e.g. "21.0.13"; a patched
+      # build reports an extra ".1" component (e.g. "21.0.13.1").
+      # If the freshly pushed image is NOT patched, fail the workflow.
+      # ------------------------------------------------------------------
+      - name: Verify patched build (CVE-2026-114938) — ${{ matrix.tag }}
+        if: ${{ matrix.verify }}
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.tag }}
+        run: |
+          set -euo pipefail
+          echo "Pulling ${IMAGE} (linux/amd64) for verification..."
+          docker pull --platform linux/amd64 "${IMAGE}"
+          OUTPUT="$(docker run --rm --platform linux/amd64 "${IMAGE}" java -version 2>&1)"
+          echo "${OUTPUT}"
+          if ! grep -q '\.1' <<<"${OUTPUT}"; then
+            echo "::error::Image ${IMAGE} is NOT patched for CVE-2026-114938 (Java4Shell)."
+            echo "::error::'java -version' did not report a patched build (expected version like x.y.z.1, got above)."
+            exit 1
+          fi
+          echo "OK: ${IMAGE} reports a patched Java build."
