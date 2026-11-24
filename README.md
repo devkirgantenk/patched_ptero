@@ -26,7 +26,7 @@ Dikelola oleh **devkirgantenk**. Build otomatis via GitHub Actions dan dipush ke
 |---|---|---|
 | `ghcr.io/devkirgantenk/patched_ptero:java_8` | eclipse-temurin:8-jre-jammy | amd64, arm64 |
 | `ghcr.io/devkirgantenk/patched_ptero:java_11` | eclipse-temurin:11-jre-jammy | amd64, arm64 |
-| `ghcr.io/devkirgantenk/patched_ptero:java_16` | eclipse-temurin:16-jre | amd64, arm64 |
+| `ghcr.io/devkirgantenk/patched_ptero:java_16` | eclipse-temurin:16-jdk | amd64, arm64 |
 | `ghcr.io/devkirgantenk/patched_ptero:java_17` | mcr.microsoft.com/openjdk/jdk:17-ubuntu | amd64, arm64 |
 | `ghcr.io/devkirgantenk/patched_ptero:java_21` | mcr.microsoft.com/openjdk/jdk:21-ubuntu | amd64, arm64 |
 | `ghcr.io/devkirgantenk/patched_ptero:java_25` | mcr.microsoft.com/openjdk/jdk:25-ubuntu | amd64, arm64 |

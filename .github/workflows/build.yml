@@ -31,7 +31,9 @@ jobs:
             base: eclipse-temurin:11-jre-jammy
             verify: false
           - tag: java_16
-            base: eclipse-temurin:16-jre
+            # NOTE: Temurin removed all 16-jre tags from Docker Hub (16 is EOL);
+            # 16-jdk is the remaining multi-arch (amd64+arm64) Temurin 16 image.
+            base: eclipse-temurin:16-jdk
             verify: false
           # Microsoft OpenJDK (patched builds)
           - tag: java_17
